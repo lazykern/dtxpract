@@ -35,17 +35,17 @@ class DisplayManager:
     # GM Sorted Layout
     # Order: Kick(36), Snare(38), F.Tom(41), H.H.Closed(42), Pedal(44), L.Tom(45), H.H.Open(46), H.Tom(48), Crash(49), Ride(51), R.Cym(57)
     LAYOUT_GM = [
-        {"name": "Kick", "channels": ["13"], "color": (255, 255, 255)},           # 36
-        {"name": "Snare", "channels": ["12"], "color": (255, 0, 100)},            # 38
-        {"name": "F.Tom", "channels": ["17"], "color": (255, 165, 0)},            # 41
-        {"name": "H.H.C", "channels": ["11"], "color": (0, 180, 255)},            # 42
-        {"name": "Pedal", "channels": ["1B", "1C"], "color": (255, 255, 255)},     # 44
-        {"name": "L.Tom", "channels": ["15"], "color": (255, 0, 0)},              # 45
-        {"name": "H.H.O", "channels": ["18"], "color": (0, 200, 255)},            # 46
-        {"name": "H.Tom", "channels": ["14"], "color": (0, 220, 0)},              # 48
-        {"name": "L.Cym", "channels": ["1A"], "color": (255, 105, 180)},          # 49
-        {"name": "Ride", "channels": ["19"], "color": (0, 180, 255)},             # 51
-        {"name": "R.Cym", "channels": ["16"], "color": (0, 180, 255)},            # 57
+        {"name": "Kick", "channels": ["13"], "color": (255, 255, 255), "is_black_key": False},     # 36 C1
+        {"name": "Snare", "channels": ["12"], "color": (255, 0, 100), "is_black_key": False},      # 38 D1
+        {"name": "F.Tom", "channels": ["17"], "color": (255, 165, 0), "is_black_key": False},      # 41 F1
+        {"name": "H.H.C", "channels": ["11"], "color": (0, 180, 255), "is_black_key": True},       # 42 F#1
+        {"name": "Pedal", "channels": ["1B", "1C"], "color": (255, 255, 255), "is_black_key": True},# 44 G#1
+        {"name": "L.Tom", "channels": ["15"], "color": (255, 0, 0), "is_black_key": False},        # 45 A1
+        {"name": "H.H.O", "channels": ["18"], "color": (0, 200, 255), "is_black_key": True},       # 46 A#1
+        {"name": "H.Tom", "channels": ["14"], "color": (0, 220, 0), "is_black_key": False},        # 48 C2
+        {"name": "L.Cym", "channels": ["1A"], "color": (255, 105, 180), "is_black_key": True},     # 49 C#2
+        {"name": "Ride", "channels": ["19"], "color": (0, 180, 255), "is_black_key": True},        # 51 D#2
+        {"name": "R.Cym", "channels": ["16"], "color": (0, 180, 255), "is_black_key": False},      # 57 A2
     ]
 
     LAYOUTS = {
@@ -98,6 +98,19 @@ class DisplayManager:
         pygame.display.flip()
 
     def _draw_lanes_and_judgment_line(self):
+        # Draw lane backgrounds for black keys
+        for i, lane in enumerate(self.lanes):
+            if lane.get("is_black_key", False):
+                x_start = self.note_highway_x_start + i * self.LANE_WIDTH
+                y_top = self.NOTE_HIGHWAY_TOP_Y
+                height = self.JUDGMENT_LINE_Y - self.NOTE_HIGHWAY_TOP_Y
+                
+                bg_rect = pygame.Rect(x_start, y_top, self.LANE_WIDTH, height)
+                
+                # Darker solid background as requested
+                pygame.draw.rect(self.screen, (20, 20, 35), bg_rect)
+
+        # Draw separators
         for i in range(self.num_lanes + 1):
             x = self.note_highway_x_start + i * self.LANE_WIDTH
             pygame.draw.line(self.screen, self.COLOR_LANE_SEPARATOR, (x, self.NOTE_HIGHWAY_TOP_Y), (x, self.JUDGMENT_LINE_Y), 1)
