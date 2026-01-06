@@ -6,14 +6,11 @@ class DisplayManager:
     # --- Constants for Visualization ---
     SCREEN_WIDTH = 800
     SCREEN_HEIGHT = 600
-    NUM_LANES = 10
-    LANE_WIDTH = 40
-    NOTE_HIGHWAY_WIDTH = NUM_LANES * LANE_WIDTH
-    NOTE_HIGHWAY_X_START = (SCREEN_WIDTH - NOTE_HIGHWAY_WIDTH) // 2
     JUDGMENT_LINE_Y = SCREEN_HEIGHT - 100
     NOTE_HIGHWAY_TOP_Y = 50
     SCROLL_TIME_MS = 1500
     PROGRESS_BAR_WIDTH = 20
+    LANE_WIDTH = 40
 
     # Colors
     COLOR_BACKGROUND = (0, 0, 0)
@@ -21,7 +18,8 @@ class DisplayManager:
     COLOR_JUDGMENT_LINE = (255, 255, 255)
     COLOR_TEXT = (220, 220, 255)
 
-    LANE_DEFINITIONS = [
+    # Standard DTX Layout
+    LAYOUT_STANDARD = [
         {"name": "L.Cym", "channels": ["1A"], "color": (255, 105, 180)},
         {"name": "H.H.", "channels": ["11", "18"], "color": (0, 180, 255)},
         {"name": "Snare", "channels": ["12"], "color": (255, 0, 100)},
@@ -33,9 +31,28 @@ class DisplayManager:
         {"name": "R.Cym", "channels": ["16"], "color": (0, 180, 255)},
         {"name": "Ride", "channels": ["19"], "color": (0, 180, 255)},
     ]
-    CHANNEL_TO_LANE_MAP = {
-        channel: i for i, lane in enumerate(LANE_DEFINITIONS) for channel in lane["channels"]
+
+    # GM Sorted Layout
+    # Order: Kick(36), Snare(38), F.Tom(41), H.H.Closed(42), Pedal(44), L.Tom(45), H.H.Open(46), H.Tom(48), Crash(49), Ride(51), R.Cym(57)
+    LAYOUT_GM = [
+        {"name": "Kick", "channels": ["13"], "color": (255, 255, 255)},           # 36
+        {"name": "Snare", "channels": ["12"], "color": (255, 0, 100)},            # 38
+        {"name": "F.Tom", "channels": ["17"], "color": (255, 165, 0)},            # 41
+        {"name": "H.H.C", "channels": ["11"], "color": (0, 180, 255)},            # 42
+        {"name": "Pedal", "channels": ["1B", "1C"], "color": (255, 255, 255)},     # 44
+        {"name": "L.Tom", "channels": ["15"], "color": (255, 0, 0)},              # 45
+        {"name": "H.H.O", "channels": ["18"], "color": (0, 200, 255)},            # 46
+        {"name": "H.Tom", "channels": ["14"], "color": (0, 220, 0)},              # 48
+        {"name": "L.Cym", "channels": ["1A"], "color": (255, 105, 180)},          # 49
+        {"name": "Ride", "channels": ["19"], "color": (0, 180, 255)},             # 51
+        {"name": "R.Cym", "channels": ["16"], "color": (0, 180, 255)},            # 57
+    ]
+
+    LAYOUTS = {
+        "STANDARD": LAYOUT_STANDARD,
+        "GM": LAYOUT_GM
     }
+
     NOTE_TYPE_COLORS = {
         "18": (100, 220, 255), "1B": (255, 105, 180),
         "13": (200, 0, 200), "1C": (200, 0, 200),
@@ -47,6 +64,27 @@ class DisplayManager:
         pygame.display.set_caption(f"Playing: {self.dtx.title} - {self.dtx.artist}")
         self.font = pygame.font.Font(None, 28)
         self.small_font = pygame.font.Font(None, 24)
+        
+        self.current_layout_name = "STANDARD"
+        self._update_layout()
+
+    def _update_layout(self):
+        """Updates internal mappings based on the current layout."""
+        self.lanes = self.LAYOUTS[self.current_layout_name]
+        self.num_lanes = len(self.lanes)
+        self.note_highway_width = self.num_lanes * self.LANE_WIDTH
+        self.note_highway_x_start = (self.SCREEN_WIDTH - self.note_highway_width) // 2
+
+        self.channel_to_lane_map = {
+            channel: i for i, lane in enumerate(self.lanes) for channel in lane["channels"]
+        }
+
+    def toggle_layout(self):
+        """Switches between available layouts."""
+        names = list(self.LAYOUTS.keys())
+        idx = names.index(self.current_layout_name)
+        self.current_layout_name = names[(idx + 1) % len(names)]
+        self._update_layout()
 
     def draw_frame(self, game_state):
         """Draws a single frame of the game."""
@@ -60,19 +98,25 @@ class DisplayManager:
         pygame.display.flip()
 
     def _draw_lanes_and_judgment_line(self):
-        for i in range(self.NUM_LANES + 1):
-            x = self.NOTE_HIGHWAY_X_START + i * self.LANE_WIDTH
+        for i in range(self.num_lanes + 1):
+            x = self.note_highway_x_start + i * self.LANE_WIDTH
             pygame.draw.line(self.screen, self.COLOR_LANE_SEPARATOR, (x, self.NOTE_HIGHWAY_TOP_Y), (x, self.JUDGMENT_LINE_Y), 1)
-        start_x = self.NOTE_HIGHWAY_X_START
-        end_x = self.NOTE_HIGHWAY_X_START + self.NOTE_HIGHWAY_WIDTH
+        start_x = self.note_highway_x_start
+        end_x = self.note_highway_x_start + self.note_highway_width
         pygame.draw.line(self.screen, self.COLOR_JUDGMENT_LINE, (start_x, self.JUDGMENT_LINE_Y), (end_x, self.JUDGMENT_LINE_Y), 3)
 
     def _draw_lane_indicators(self):
         y_pos = self.JUDGMENT_LINE_Y + 5
-        for i, lane_def in enumerate(self.LANE_DEFINITIONS):
-            x_pos = self.NOTE_HIGHWAY_X_START + i * self.LANE_WIDTH
+        for i, lane_def in enumerate(self.lanes):
+            x_pos = self.note_highway_x_start + i * self.LANE_WIDTH
             rect = pygame.Rect(x_pos + 2, y_pos, self.LANE_WIDTH - 4, 15)
             pygame.draw.rect(self.screen, lane_def["color"], rect)
+            
+            # Draw lane name
+            text = self.small_font.render(lane_def["name"], True, (150, 150, 150))
+            text = pygame.transform.rotate(text, 90)
+            text_rect = text.get_rect(center=(x_pos + self.LANE_WIDTH // 2, y_pos + 40))
+            self.screen.blit(text, text_rect)
 
     def _draw_notes(self, current_time_ms, notes_to_play, note_index):
         highway_height = self.JUDGMENT_LINE_Y - self.NOTE_HIGHWAY_TOP_Y
@@ -84,10 +128,10 @@ class DisplayManager:
             if time_until_hit >= 0:
                 progress = 1.0 - (time_until_hit / self.SCROLL_TIME_MS)
                 y_pos = self.NOTE_HIGHWAY_TOP_Y + (progress * highway_height)
-                if channel_id in self.CHANNEL_TO_LANE_MAP:
-                    lane_index = self.CHANNEL_TO_LANE_MAP[channel_id]
-                    color = self.NOTE_TYPE_COLORS.get(channel_id, self.LANE_DEFINITIONS[lane_index]["color"])
-                    x_pos = self.NOTE_HIGHWAY_X_START + lane_index * self.LANE_WIDTH
+                if channel_id in self.channel_to_lane_map:
+                    lane_index = self.channel_to_lane_map[channel_id]
+                    color = self.NOTE_TYPE_COLORS.get(channel_id, self.lanes[lane_index]["color"])
+                    x_pos = self.note_highway_x_start + lane_index * self.LANE_WIDTH
                     note_rect = pygame.Rect(x_pos + 2, y_pos - 3, self.LANE_WIDTH - 4, 7)
                     if channel_id == "18":
                         pygame.draw.rect(self.screen, color, note_rect, 2)
@@ -104,17 +148,17 @@ class DisplayManager:
                 hit_animations.remove(anim)
                 continue
             channel_id = anim["channel_id"]
-            if channel_id in self.CHANNEL_TO_LANE_MAP:
-                lane_index = self.CHANNEL_TO_LANE_MAP[channel_id]
-                note_color = self.NOTE_TYPE_COLORS.get(channel_id, self.LANE_DEFINITIONS[lane_index]["color"])
+            if channel_id in self.channel_to_lane_map:
+                lane_index = self.channel_to_lane_map[channel_id]
+                note_color = self.NOTE_TYPE_COLORS.get(channel_id, self.lanes[lane_index]["color"])
                 color = tuple(min(c + 80, 255) for c in note_color)
-                x_pos = self.NOTE_HIGHWAY_X_START + lane_index * self.LANE_WIDTH
+                x_pos = self.note_highway_x_start + lane_index * self.LANE_WIDTH
                 rect = pygame.Rect(x_pos, self.JUDGMENT_LINE_Y - 50, self.LANE_WIDTH, 50)
                 pygame.draw.rect(self.screen, color, rect)
 
     def _draw_progress_bar(self, current_time_ms, song_duration_ms):
         if song_duration_ms > 0:
-            progress_bar_x = self.NOTE_HIGHWAY_X_START + self.NOTE_HIGHWAY_WIDTH + 10
+            progress_bar_x = self.note_highway_x_start + self.note_highway_width + 10
             progress_bar_height = self.JUDGMENT_LINE_Y - self.NOTE_HIGHWAY_TOP_Y
             bg_rect = pygame.Rect(progress_bar_x, self.NOTE_HIGHWAY_TOP_Y, self.PROGRESS_BAR_WIDTH, progress_bar_height)
             pygame.draw.rect(self.screen, self.COLOR_LANE_SEPARATOR, bg_rect)
@@ -130,6 +174,7 @@ class DisplayManager:
             f"BPM: {self.dtx.bpm:.2f}",
             f"BGM Vol: {s['bgm_volume'] * 100:.0f}%",
             f"SE Vol: {s['se_volume'] * 100:.0f}%",
+            f"Layout: {self.current_layout_name} (Toggle: V)",
         ]
         for i, text in enumerate(texts):
             surface = self.font.render(text, True, self.COLOR_TEXT)

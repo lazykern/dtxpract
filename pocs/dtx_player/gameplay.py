@@ -116,6 +116,9 @@ class Game:
         elif event.key == pygame.K_LEFT:
             new_time_ms = current_time_ms - (self.JUMP_AMOUNT_S * 1000)
 
+        elif event.key == pygame.K_v:
+            self.display_manager.toggle_layout()
+
         if new_time_ms != -1:
             self.seek(new_time_ms)
             
