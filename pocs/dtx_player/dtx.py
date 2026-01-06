@@ -64,6 +64,7 @@ class Dtx:
 
         # The final calculated event list
         self.timed_notes = []  # List of (time_in_ms, wav_id_str)
+        self.channel_to_default_wav = {}
 
     def _split_line(self, line):
         """
@@ -196,6 +197,8 @@ class Dtx:
                 total_notes = len(notes)
                 for i, note_val in enumerate(notes):
                     if note_val != "00":
+                        if channel not in self.channel_to_default_wav:
+                            self.channel_to_default_wav[channel] = note_val
                         raw_events.append(
                             {
                                 "bar": bar_num,
@@ -207,11 +210,6 @@ class Dtx:
                         )
         
         logging.info(f"Discovered Metadata -> Title: '{self.title}', Artist: '{self.artist}', Base BPM: {self.bpm}")
-
-        # If BGMWAV is not specified, default to WAV01, a common convention
-        if not self.bgm_wav_id and "01" in self.wav_files:
-            self.bgm_wav_id = "01"
-            logging.info(f"BGMWAV not specified, defaulting to WAV01.")
 
         logging.info(
             f"Found {len(self.wav_files)} WAVs, {len(self.bar_length_changes)} bar length changes, and {len(raw_events)} raw events."
@@ -266,13 +264,7 @@ class Dtx:
             
             new_bpm = -1
 
-            if channel == "01":  # BGM event
-                if not first_bgm_event_processed:
-                    self.bgm_start_time_ms = event_time_s * 1000
-                    first_bgm_event_processed = True
-                    logging.info(f"BGM start time detected at beat {event['global_beat']:.2f} ({self.bgm_start_time_ms:.2f}ms)")
-                # BGM events aren't notes, so we don't add them to the list.
-            elif channel == "03":  # Direct BPM change (hexadecimal value)
+            if channel == "03":  # Direct BPM change (hexadecimal value)
                 try:
                     new_bpm = float(int(value, 16))
                 except (ValueError, TypeError):

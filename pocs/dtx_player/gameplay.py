@@ -234,8 +234,11 @@ class Game:
             
         else:
             # Ghost hit (pressed but no note near)
-            # Maybe play default sound? For now, silence.
-            pass
+            default_wav_id = self.dtx.channel_to_default_wav.get(channel_id)
+            if default_wav_id:
+                self.audio_manager.play_note(channel_id, default_wav_id, current_time)
+                self.game_state["hit_animations"].append({"channel_id": channel_id, "time": current_time})
+                logging.info(f"Manual ghost hit on channel {channel_id}")
 
     def update_notes(self):
         """Check for and trigger notes that are due."""
