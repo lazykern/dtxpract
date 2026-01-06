@@ -85,6 +85,7 @@ class Game:
             "auto_mode": self.auto_mode,
             "last_judgment": "",
             "midi_status": self.midi_status,
+            "pressed_channels": set(),
         }
 
     def run(self):
@@ -151,12 +152,21 @@ class Game:
         # iter_pending is non-blocking
         for msg in self.midi_input.iter_pending():
             if msg.type == 'note_on' and msg.velocity > 0:
-                logging.info(f"MIDI Note On: {msg.note} Vel: {msg.velocity}")
+                # Key Pressed
+                # logging.info(f"MIDI Note On: {msg.note} Vel: {msg.velocity}")
                 if msg.note in self.GM_MIDI_MAP:
-                    val = self.GM_MIDI_MAP[msg.note]
-                    self.trigger_manual_note(val)
-                else:
-                    logging.info(f"Unmapped MIDI Note: {msg.note}")
+                    pk = self.GM_MIDI_MAP[msg.note]
+                    self.game_state["pressed_channels"].add(pk)
+                    self.trigger_manual_note(pk)
+                # else:
+                #     logging.info(f"Unmapped MIDI Note: {msg.note}")
+            
+            elif msg.type == 'note_off' or (msg.type == 'note_on' and msg.velocity == 0):
+                # Key Released
+                if msg.note in self.GM_MIDI_MAP:
+                    pk = self.GM_MIDI_MAP[msg.note]
+                    if pk in self.game_state["pressed_channels"]:
+                        self.game_state["pressed_channels"].remove(pk)
 
     def trigger_manual_note(self, channel_id):
         current_time = self.game_state["current_time_ms"]

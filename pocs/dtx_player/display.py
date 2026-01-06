@@ -90,7 +90,10 @@ class DisplayManager:
         """Draws a single frame of the game."""
         self.screen.fill(self.COLOR_BACKGROUND)
         self._draw_lanes_and_judgment_line()
-        self._draw_lane_indicators()
+        
+        pressed = game_state.get("pressed_channels", set())
+        self._draw_lane_indicators_with_state(pressed)
+        
         self._draw_notes(game_state["current_time_ms"], game_state["notes_to_play"], game_state["note_index"])
         self._draw_hit_animations(game_state["current_time_ms"], game_state["hit_animations"])
         self._draw_progress_bar(game_state["current_time_ms"], game_state["song_duration_ms"])
@@ -120,10 +123,35 @@ class DisplayManager:
 
     def _draw_lane_indicators(self):
         y_pos = self.JUDGMENT_LINE_Y + 5
+        pressed_channels = getattr(self, "current_pressed_channels", set()) 
+        # Hack: The display manager doesn't strictly have access to game_state in this method signature
+        # But we pass game_state to draw_frame. let's fetch it from there or update signature.
+        # Actually simplest is to handle it in draw_frame or update this method signature.
+        # But wait, draw_frame calls this. I need to pass the pressed state.
+        pass
+
+    def _draw_lane_indicators_with_state(self, pressed_channels):
+        y_pos = self.JUDGMENT_LINE_Y + 5
         for i, lane_def in enumerate(self.lanes):
             x_pos = self.note_highway_x_start + i * self.LANE_WIDTH
-            rect = pygame.Rect(x_pos + 2, y_pos, self.LANE_WIDTH - 4, 15)
-            pygame.draw.rect(self.screen, lane_def["color"], rect)
+            
+            # Check if any channel in this lane is pressed
+            is_pressed = any(ch in pressed_channels for ch in lane_def["channels"])
+            
+            if is_pressed:
+                # Draw Beam / Highlight
+                # Beam effect
+                beam_rect = pygame.Rect(x_pos, self.NOTE_HIGHWAY_TOP_Y, self.LANE_WIDTH, self.JUDGMENT_LINE_Y - self.NOTE_HIGHWAY_TOP_Y)
+                s = pygame.Surface((self.LANE_WIDTH, beam_rect.height), pygame.SRCALPHA)
+                s.fill((255, 255, 255, 40)) # Light transparent white
+                self.screen.blit(s, (x_pos, self.NOTE_HIGHWAY_TOP_Y))
+                
+                # Active Indicator
+                rect = pygame.Rect(x_pos + 2, y_pos, self.LANE_WIDTH - 4, 15)
+                pygame.draw.rect(self.screen, (255, 255, 255), rect) # Bright white when pressed
+            else:
+                rect = pygame.Rect(x_pos + 2, y_pos, self.LANE_WIDTH - 4, 15)
+                pygame.draw.rect(self.screen, lane_def["color"], rect)
             
             # Draw lane name
             text = self.small_font.render(lane_def["name"], True, (150, 150, 150))
