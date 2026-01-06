@@ -134,7 +134,13 @@ class DisplayManager:
     def _draw_notes(self, current_time_ms, notes_to_play, note_index):
         highway_height = self.JUDGMENT_LINE_Y - self.NOTE_HIGHWAY_TOP_Y
         for i in range(note_index, len(notes_to_play)):
-            note_time, channel_id, _ = notes_to_play[i]
+            note = notes_to_play[i]
+            if note.get("hit", False):
+                continue
+                
+            note_time = note["time"]
+            channel_id = note["channel"]
+            
             time_until_hit = note_time - current_time_ms
             if time_until_hit > self.SCROLL_TIME_MS:
                 break
@@ -188,6 +194,9 @@ class DisplayManager:
             f"BGM Vol: {s['bgm_volume'] * 100:.0f}%",
             f"SE Vol: {s['se_volume'] * 100:.0f}%",
             f"Layout: {self.current_layout_name} (Toggle: V)",
+            f"Mode: {'AUTO' if s.get('auto_mode', True) else 'MANUAL'} (Toggle: A)",
+            f"Judgment: {s.get('last_judgment', '')}",
+            f"{s.get('midi_status', 'MIDI: ???')}",
         ]
         for i, text in enumerate(texts):
             surface = self.font.render(text, True, self.COLOR_TEXT)
