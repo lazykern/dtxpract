@@ -1,0 +1,6 @@
+[submodule "DTXmaniaNX"]
+	path = DTXmaniaNX
+	url = https://github.com/limyz/DTXmaniaNX
+[submodule "patazon"]
+	path = patazon
+	url = https://github.com/lazykern/patazon
