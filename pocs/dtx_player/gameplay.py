@@ -74,6 +74,11 @@ class Game:
             logging.error(f"Failed to initialize MIDI: {e}")
             self.midi_status = "MIDI: Error"
 
+        # Time synchronization
+        self.time_base_ms = 0
+        self.start_ticks = 0
+        self.clock_is_audio_driven = False
+
         self.game_state = {
             "current_time_ms": 0,
             "note_index": 0,
@@ -98,11 +103,11 @@ class Game:
         clock = pygame.time.Clock()
         logging.info("--- Starting Playback ---")
         
-        time_offset_ms = self.dtx.bgm_start_time_ms
-        self.game_state["current_time_ms"] = time_offset_ms
+        self.time_base_ms = self.dtx.bgm_start_time_ms
+        self.game_state["current_time_ms"] = self.time_base_ms
 
-        clock_is_audio_driven = self.audio_manager.play_bgm()
-        start_ticks = pygame.time.get_ticks()
+        self.clock_is_audio_driven = self.audio_manager.play_bgm()
+        self.start_ticks = pygame.time.get_ticks() - self.game_state["current_time_ms"]
 
         running = True
         while running:
@@ -116,14 +121,14 @@ class Game:
             self.process_midi_input()
 
             # --- Update Master Clock ---
-            if clock_is_audio_driven and pygame.mixer.music.get_busy():
-                self.game_state["current_time_ms"] = pygame.mixer.music.get_pos() + time_offset_ms
+            if self.clock_is_audio_driven and pygame.mixer.music.get_busy():
+                self.game_state["current_time_ms"] = self.time_base_ms + pygame.mixer.music.get_pos()
             else:
-                if clock_is_audio_driven:
+                if self.clock_is_audio_driven:
                     logging.info("BGM finished. Switching to system clock.")
-                    clock_is_audio_driven = False
-                    start_ticks = current_tick - self.song_duration_ms
-                self.game_state["current_time_ms"] = current_tick - start_ticks
+                    self.clock_is_audio_driven = False
+                    self.start_ticks = current_tick - self.game_state["current_time_ms"]
+                self.game_state["current_time_ms"] = current_tick - self.start_ticks
 
             self.update_notes()
             
@@ -349,7 +354,12 @@ class Game:
         # Resync BGM
         self.audio_manager.stop_bgm()
         music_start_pos_s = max(0, (new_time_ms - self.dtx.bgm_start_time_ms) / 1000.0)
-        self.audio_manager.play_bgm(start_pos_s=music_start_pos_s)
+
+        # Update time bases for both clock types
+        self.time_base_ms = new_time_ms
+        self.start_ticks = pygame.time.get_ticks() - new_time_ms
+        
+        self.clock_is_audio_driven = self.audio_manager.play_bgm(start_pos_s=music_start_pos_s)
         
         # Find new note index
         self.game_state["note_index"] = 0
